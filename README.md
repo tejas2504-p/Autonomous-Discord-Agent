@@ -153,6 +153,8 @@ The AI Agent has been upgraded to understand user requests and natively perform 
 *   `create_channel(name, type)` - Creates new text or voice channels.
 *   `edit_message(messageId, content)` - Updates existing messages.
 *   `delete_message(messageId)` - Deletes messages.
+*   `fetch_messages(channelId, limit)` - Fetches recent messages from a channel.
+*   `bulk_delete_messages(messageIds)` - Safely deletes multiple messages at once.
 *   `add_reaction(messageId, emoji)` - Reacts to messages.
 *   `assign_role(userId, roleId)` - Assigns roles to members.
 *   `remove_role(userId, roleId)` - Removes roles.

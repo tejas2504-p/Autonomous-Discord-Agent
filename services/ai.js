@@ -60,6 +60,7 @@ CONVERSATIONAL BEHAVIOR:
 
 DISCORD ACTION TOOLS:
 You also have access to Discord Action Tools (e.g. send_message, create_channel, edit_message). Use them whenever the user requests you to perform an action on the Discord server (like "post this in #general" or "send a message").
+For deleting multiple messages (e.g. "Delete the last 10 messages"), ALWAYS follow this workflow: 1. Call fetch_messages to get recent messages. 2. Filter if needed (e.g. by author). 3. Pass their IDs to bulk_delete_messages.
 Do not claim an action was completed unless the tool execution actually succeeds.`;
         } else {
             systemInstructionText += `\nProvide helpful, natural, and accurate responses directly using your knowledge base. Tool usage is currently disabled for this interaction.`;
@@ -754,7 +755,7 @@ Do not claim an action was completed unless the tool execution actually succeeds
 
         let systemInstruction = `You are a helpful AI assistant in Discord.`;
         if (!options.disableTools) {
-            systemInstruction += ` You have tools for web search, current time, memory, and Discord Action Tools (like send_message). Only use webSearch for recent/live data. Only use getCurrentDateTime for time queries. Use Discord Action Tools when requested to perform server actions. Otherwise, answer directly. Do not claim to have completed an action unless the tool succeeds. Keep answers concise.`;
+            systemInstruction += ` You have tools for web search, current time, memory, and Discord Action Tools (like send_message). Only use webSearch for recent/live data. Only use getCurrentDateTime for time queries. Use Discord Action Tools when requested to perform server actions. For deleting multiple messages, ALWAYS use fetch_messages first, then pass the extracted IDs to bulk_delete_messages. Otherwise, answer directly. Do not claim to have completed an action unless the tool succeeds. Keep answers concise.`;
         } else {
             systemInstruction += ` Provide helpful responses directly.`;
         }
