@@ -765,7 +765,7 @@ Do not claim an action was completed unless the tool execution actually succeeds
         ];
 
         // Reduce history to last 4 messages to save tokens
-        const recentHistory = history && history.length > 0 ? history.slice(-4) : [];
+        const recentHistory = history && history.length > 0 ? history.slice(-50) : [];
         if (recentHistory.length > 0) {
             for (const h of recentHistory) {
                 const role = h.role === 'model' ? 'assistant' : (h.role === 'function' ? 'tool' : 'user');

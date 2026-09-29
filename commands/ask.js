@@ -59,8 +59,8 @@ module.exports = {
                 parts: [{ text: responseText }]
             });
 
-            // Limit history to the last 4 messages
-            const MAX_HISTORY = 4;
+            // Limit history to the last 50 messages to remember long conversations
+            const MAX_HISTORY = 50;
             if (history.length > MAX_HISTORY) {
                 history = history.slice(history.length - MAX_HISTORY);
             }
