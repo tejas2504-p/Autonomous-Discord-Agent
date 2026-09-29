@@ -1057,23 +1057,29 @@ Do not claim an action was completed unless the tool execution actually succeeds
      * @returns {Promise<Buffer>} The image data buffer
      */
     async generateImage(prompt, options = {}) {
-        if (!this.apiKey || this.apiKey === 'your_gemini_api_key_here') {
-            throw new Error("AI feature is not configured. Please add a valid `GEMINI_API_KEY` to your `.env` file.");
+        const pollinationKey = process.env.POLLINATION_API_KEY;
+        if (!pollinationKey) {
+            throw new Error("AI image feature is not configured. Please add a valid `POLLINATION_API_KEY` to your `.env` file.");
         }
 
-        const model = 'imagen-4.0-generate-001';
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:predict?key=${this.apiKey}`;
+        const encodedPrompt = encodeURIComponent(prompt);
+        // Add random seed to ensure different images for the same prompt
+        const seed = Math.floor(Math.random() * 10000000);
+        let width = 1024;
+        let height = 1024;
+        
+        // Aspect ratio handling
+        if (options.aspectRatio === '16:9') {
+            width = 1024; height = 576;
+        } else if (options.aspectRatio === '9:16') {
+            width = 576; height = 1024;
+        } else if (options.aspectRatio === '4:3') {
+            width = 1024; height = 768;
+        } else if (options.aspectRatio === '3:4') {
+            width = 768; height = 1024;
+        }
 
-        const payload = {
-            instances: [
-                { prompt: prompt }
-            ],
-            parameters: {
-                sampleCount: 1,
-                aspectRatio: options.aspectRatio || "1:1",
-                outputMimeType: "image/png"
-            }
-        };
+        const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?nologo=true&seed=${seed}&width=${width}&height=${height}`;
 
         let attempts = 0;
         const maxAttempts = 3;
@@ -1083,65 +1089,46 @@ Do not claim an action was completed unless the tool execution actually succeeds
             attempts++;
             try {
                 const response = await fetch(url, {
-                    method: 'POST',
+                    method: 'GET',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Authorization': `Bearer ${pollinationKey}`
                     },
-                    body: JSON.stringify(payload),
-                    signal: AbortSignal.timeout(15000) // 15 second timeout
+                    signal: AbortSignal.timeout(30000) // 30 second timeout
                 });
 
-                // If Service Unavailable (503), retry with exponential backoff
                 if (response.status === 503 && attempts < maxAttempts) {
-                    console.warn(`Gemini API returned 503. Retrying attempt ${attempts} in ${backoffMs}ms...`);
+                    console.warn(`Pollination API returned 503. Retrying attempt ${attempts} in ${backoffMs}ms...`);
                     await new Promise(resolve => setTimeout(resolve, backoffMs));
                     backoffMs *= 2;
                     continue;
                 }
 
                 if (!response.ok) {
-                    const errData = await response.json().catch(() => ({}));
-                    console.error('Gemini API image generation error status:', response.status, errData);
-                    
-                    if (errData.error && errData.error.message && errData.error.message.includes("paid plans")) {
-                        throw new Error("Image generation is only available on paid plans in Google AI Studio. Please upgrade your Google AI Studio project to enable billing.");
-                    }
-                    
-                    if (response.status === 429) {
-                        throw new Error("Rate limit exceeded (Too Many Requests). Please wait a moment before trying again.");
-                    } else if (response.status === 503) {
-                        throw new Error("The AI service is temporarily overloaded or unavailable (503). Please try again shortly.");
-                    } else {
-                        throw new Error(`Error from Gemini API: Status ${response.status}. Please check your API key and connection.`);
-                    }
+                    let errorMsg = `Error from Pollination API: Status ${response.status}.`;
+                    try {
+                        const errData = await response.text();
+                        errorMsg += ` ${errData}`;
+                    } catch(e) {}
+                    throw new Error(errorMsg);
                 }
 
-                const data = await response.json();
-                
-                if (
-                    data &&
-                    data.predictions &&
-                    data.predictions[0] &&
-                    data.predictions[0].bytesBase64Encoded
-                ) {
-                    return Buffer.from(data.predictions[0].bytesBase64Encoded, 'base64');
-                }
+                const arrayBuffer = await response.arrayBuffer();
+                return Buffer.from(arrayBuffer);
 
-                throw new Error("Received an empty or unexpected response format from the AI image generation service.");
             } catch (error) {
-                // If it is our custom error or we reached max attempts, throw it
-                if (attempts >= maxAttempts || error.message.includes("Rate limit") || error.message.includes("temporarily overloaded")) {
+                if (attempts >= maxAttempts) {
                     console.error('AIService generateImage Error:', error);
                     throw error;
                 }
-                
-                // For connection-level network errors, retry
                 console.warn(`Network error on attempt ${attempts}. Retrying in ${backoffMs}ms...`, error);
                 await new Promise(resolve => setTimeout(resolve, backoffMs));
                 backoffMs *= 2;
             }
         }
+        
+        throw new Error("Failed to generate image after multiple attempts.");
     }
 }
 
 module.exports = new AIService();
+
